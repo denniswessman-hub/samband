@@ -28,9 +28,10 @@ test("server-renders the finished learning platform", async () => {
 });
 
 test("ships the complete course structure without publishing source files", async () => {
-  const [content, page, layout, sourceNames, publicNames, socialImage] = await Promise.all([
+  const [content, page, talkgroupLab, layout, sourceNames, publicNames, socialImage] = await Promise.all([
     readFile(new URL("../app/content.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/talkgroup-lab.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readdir(new URL("../källmaterial/", import.meta.url)),
     readdir(new URL("../public/", import.meta.url)),
@@ -41,7 +42,11 @@ test("ships the complete course structure without publishing source files", asyn
   assert.equal((content.match(/question: "/g) ?? []).length, 30);
   assert.match(page, /localStorage/);
   assert.match(page, /PracticeLab/);
+  assert.match(page, /TalkgroupLab/);
   assert.match(page, /SourceLibrary/);
+  assert.equal((talkgroupLab.match(/sourceNote: "/g) ?? []).length, 5);
+  assert.match(talkgroupLab, /Navigering talgrupper, sida 6/);
+  assert.match(talkgroupLab, /Mappar och talgruppsträd HT2025/);
   assert.match(layout, /openGraph/);
   assert.equal(sourceNames.length, 63);
   assert.equal(sourceNames.filter((name) => name.toLowerCase().endsWith(".pdf")).length, 61);

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { modules, quickCards, radioScenarios, sourceDocuments, type LearningModule } from "./content";
+import { folderPath, navigationExercises, rootFolderIds, siblingIds, talkgroupFolders } from "./talkgroup-lab";
 
 type View = "start" | "lab" | "snabbkort" | "kallor";
 type ProgressState = { completed: string[]; scores: Record<string, number> };
@@ -112,6 +113,11 @@ export default function Home() {
           setLessonIndex(0);
         }}
         onClose={closeModule}
+        onOpenLab={() => {
+          setActiveModule(null);
+          setView("lab");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
         completed={progress.completed.includes(activeModule.id)}
       />
     );
@@ -193,7 +199,7 @@ export default function Home() {
             <div>
               <span className="eyebrow light">Övningslabb</span>
               <h2>Tryck, välj, lyssna.</h2>
-              <p>Utforska direktval på en förenklad SC21 och träna vilket trafikuttryck som avslutar nästa sändning.</p>
+              <p>Navigera i talgruppsträdet, prova direktval på en förenklad SC21 och träna vilket trafikuttryck som avslutar nästa sändning.</p>
               <button className="lime-action" onClick={() => setView("lab")}>Starta labbet <span>→</span></button>
             </div>
             <MiniTerminal />
@@ -249,7 +255,7 @@ function SiteHeader({ view, setView, progressPercent }: { view: View; setView: (
 }
 
 function ModuleWorkspace({
-  module, lessonIndex, setLessonIndex, answers, setAnswers, quizScore, submitQuiz, restartModule, onClose, completed,
+  module, lessonIndex, setLessonIndex, answers, setAnswers, quizScore, submitQuiz, restartModule, onClose, onOpenLab, completed,
 }: {
   module: LearningModule;
   lessonIndex: number;
@@ -260,6 +266,7 @@ function ModuleWorkspace({
   submitQuiz: () => void;
   restartModule: () => void;
   onClose: () => void;
+  onOpenLab: () => void;
   completed: boolean;
 }) {
   const isQuiz = lessonIndex === module.lessons.length;
@@ -309,6 +316,12 @@ function ModuleWorkspace({
               </ul>
               {lesson.memory && <div className="memory-card"><small>Minnesregel</small><strong>{lesson.memory}</strong></div>}
               {lesson.caution && <div className="caution-card"><small>Viktigt</small><p>{lesson.caution}</p></div>}
+              {module.id === "talgrupper" && lessonIndex === 1 && (
+                <div className="lab-callout">
+                  <div><small>Praktisk träning</small><strong>Prova fem källkontrollerade rutter i Talgruppslabbet.</strong></div>
+                  <button className="lime-action" onClick={onOpenLab}>Öppna Talgruppslabbet <span>→</span></button>
+                </div>
+              )}
               <div className="lesson-actions">
                 <button className="outline-action" disabled={lessonIndex === 0} onClick={() => go(lessonIndex - 1)}>← Föregående</button>
                 <button className="primary-action" onClick={() => go(lessonIndex + 1)}>{lessonIndex === module.lessons.length - 1 ? "Till kontrollen" : "Nästa lärpass"} <span>→</span></button>
@@ -411,11 +424,12 @@ function PracticeLab() {
       <div className="subpage-hero dark">
         <span className="eyebrow light">Övningslabb</span>
         <h1>Gör valet. Se följden.</h1>
-        <p>Förenklad träning – inget här påverkar en riktig terminal eller skickar någon signal.</p>
+        <p>Fem navigeringsövningar i utbildningsstrukturen, följt av direktval och trafikuttryck. Inget här påverkar en riktig terminal eller skickar någon signal.</p>
       </div>
       <div className="lab-layout">
+        <TalkgroupLab />
         <article className="terminal-lab">
-          <div className="lab-heading"><span>01</span><div><h2>Direktval på SC21</h2><p>Klicka motsvarar ett långt tryck i den här simulatorn.</p></div></div>
+          <div className="lab-heading"><span>02</span><div><h2>Direktval på SC21</h2><p>Klicka motsvarar ett långt tryck i den här simulatorn.</p></div></div>
           <div className="terminal-wrap">
             <div className="terminal-device">
               <div className="terminal-top"><i /><i /><i /></div>
@@ -445,7 +459,7 @@ function PracticeLab() {
         </article>
 
         <article className="radio-lab">
-          <div className="lab-heading"><span>02</span><div><h2>Vem äger samtalet?</h2><p>Välj trafikuttrycket som passar bäst.</p></div></div>
+          <div className="lab-heading"><span>03</span><div><h2>Vem äger samtalet?</h2><p>Välj trafikuttrycket som passar bäst.</p></div></div>
           <div className="radio-console">
             <div className="waveform" aria-hidden="true">{Array.from({ length: 26 }).map((_, index) => <i key={index} style={{ height: `${22 + ((index * 37) % 68)}%` }} />)}</div>
             <span className="scenario-count">Scenario {scenarioIndex + 1} / {radioScenarios.length}</span>
@@ -461,6 +475,189 @@ function PracticeLab() {
         </article>
       </div>
     </section>
+  );
+}
+
+function TalkgroupLab() {
+  const [exerciseIndex, setExerciseIndex] = useState(0);
+  const exercise = navigationExercises[exerciseIndex];
+  const initialGroupIndex = (folderId: string, group?: string) => {
+    const groups = talkgroupFolders[folderId]?.groups ?? [];
+    const index = group ? groups.indexOf(group) : 0;
+    return Math.max(0, index);
+  };
+  const [folderId, setFolderId] = useState(exercise.startFolder);
+  const [groupIndex, setGroupIndex] = useState(() => initialGroupIndex(exercise.startFolder, exercise.startGroup));
+  const [moves, setMoves] = useState(0);
+  const [message, setMessage] = useState("Börja med att läsa startläge och mål.");
+  const [completed, setCompleted] = useState<string[]>([]);
+  const folder = talkgroupFolders[folderId];
+  const groups = folder.groups ?? [];
+  const selectedGroup = groups[groupIndex];
+  const isDone = folderId === exercise.targetFolder && selectedGroup === exercise.targetGroup;
+  const mode = folderId === "dmo" && selectedGroup ? "DMO" : "TMO";
+
+  const loadExercise = (index: number) => {
+    const next = navigationExercises[index];
+    setExerciseIndex(index);
+    setFolderId(next.startFolder);
+    setGroupIndex(initialGroupIndex(next.startFolder, next.startGroup));
+    setMoves(0);
+    setMessage("Nytt startläge laddat. Hitta målet utan direktval.");
+  };
+
+  const checkCompletion = (nextFolderId: string, nextGroupIndex: number, nextMoves: number) => {
+    const nextFolder = talkgroupFolders[nextFolderId];
+    const nextGroup = nextFolder.groups?.[nextGroupIndex];
+    if (nextFolderId === exercise.targetFolder && nextGroup === exercise.targetGroup) {
+      setCompleted((current) => current.includes(exercise.id) ? current : [...current, exercise.id]);
+      setMessage(`Rätt. Målet nåddes på ${nextMoves} handgrepp.`);
+      return true;
+    }
+    return false;
+  };
+
+  const moveFolder = (direction: "left" | "right" | "up" | "down") => {
+    if (isDone) return;
+    let nextFolderId = folderId;
+    if (direction === "up") {
+      if (!folder.parent) {
+        setMessage("Du är redan på huvudraden. Använd vänster eller höger.");
+        return;
+      }
+      nextFolderId = folder.parent;
+    } else if (direction === "down") {
+      if (!folder.children?.length) {
+        setMessage(groups.length ? "Här finns talgrupper. Använd vredet." : "Den här mappen har ingen undermapp i övningsmodellen.");
+        return;
+      }
+      nextFolderId = folder.children[0];
+    } else {
+      const siblings = siblingIds(folderId);
+      const currentIndex = siblings.indexOf(folderId);
+      const delta = direction === "left" ? -1 : 1;
+      const nextIndex = currentIndex + delta;
+      if (nextIndex < 0 || nextIndex >= siblings.length) {
+        setMessage(`Det finns ingen mapp längre åt ${direction === "left" ? "vänster" : "höger"} på den här nivån.`);
+        return;
+      }
+      nextFolderId = siblings[nextIndex];
+    }
+    const nextMoves = moves + 1;
+    setFolderId(nextFolderId);
+    setGroupIndex(-1);
+    setMoves(nextMoves);
+    const nextFolder = talkgroupFolders[nextFolderId];
+    if (!checkCompletion(nextFolderId, -1, nextMoves)) {
+      setMessage(nextFolder.groups?.length ? "Rätt mappnivå. Använd vredet för att välja talgrupp." : "Mappen vald. Fortsätt med pilarna.");
+    }
+  };
+
+  const turnKnob = (direction: -1 | 1) => {
+    if (isDone) return;
+    if (!groups.length) {
+      setMessage(folder.children?.length ? "Mappen innehåller undermappar. Använd pil ned." : "Här finns ingen valbar talgrupp i övningsmodellen.");
+      return;
+    }
+    const nextIndex = groupIndex < 0
+      ? (direction === 1 ? 0 : groups.length - 1)
+      : (groupIndex + direction + groups.length) % groups.length;
+    const nextMoves = moves + 1;
+    setGroupIndex(nextIndex);
+    setMoves(nextMoves);
+    if (!checkCompletion(folderId, nextIndex, nextMoves)) {
+      setMessage("Vredet bytte talgrupp i den valda mappen.");
+    }
+  };
+
+  const showHint = () => {
+    const targetPath = folderPath(exercise.targetFolder).map((item) => item.id);
+    const currentPath = folderPath(folderId).map((item) => item.id);
+    if (folderId === exercise.targetFolder) {
+      setMessage(selectedGroup === exercise.targetGroup ? "Målet är klart." : `Du är i rätt mapp. Vrid till ${exercise.targetGroup}.`);
+      return;
+    }
+    if (targetPath.includes(folderId)) {
+      setMessage("Du är på rätt gren. Använd pil ned.");
+      return;
+    }
+    if (currentPath.length > 1) {
+      setMessage("Gå uppåt tills du når den gemensamma mappnivån.");
+      return;
+    }
+    const currentRootIndex = rootFolderIds.indexOf(folderId as (typeof rootFolderIds)[number]);
+    const targetRootIndex = rootFolderIds.indexOf(targetPath[0] as (typeof rootFolderIds)[number]);
+    setMessage(`På huvudraden: använd pil ${targetRootIndex < currentRootIndex ? "vänster" : "höger"} mot ${talkgroupFolders[targetPath[0]].label}.`);
+  };
+
+  return (
+    <article className="talkgroup-lab" aria-labelledby="talkgroup-lab-title">
+      <div className="lab-heading"><span>01</span><div><h2 id="talkgroup-lab-title">Talgruppslabbet</h2><p>Pilar väljer mapp. Vred väljer talgrupp.</p></div></div>
+      <div className="talkgroup-meta">
+        <span>Utbildningsstruktur HT2025</span>
+        <b>{completed.length} av {navigationExercises.length} klara</b>
+      </div>
+      <div className="exercise-tabs" role="tablist" aria-label="Navigeringsövningar">
+        {navigationExercises.map((item, index) => (
+          <button
+            key={item.id}
+            role="tab"
+            aria-selected={exerciseIndex === index}
+            className={`${exerciseIndex === index ? "active" : ""} ${completed.includes(item.id) ? "done" : ""}`}
+            onClick={() => loadExercise(index)}
+          >
+            <span>{completed.includes(item.id) ? "✓" : index + 1}</span>{item.title}
+          </button>
+        ))}
+      </div>
+      <div className="talkgroup-workbench">
+        <section className="exercise-brief" aria-label="Aktuell övning">
+          <span className="scenario-count">Övning {exerciseIndex + 1} / {navigationExercises.length}</span>
+          <h3>{exercise.title}</h3>
+          <p>{exercise.briefing}</p>
+          <dl>
+            <div><dt>Start</dt><dd>{talkgroupFolders[exercise.startFolder].label}{exercise.startGroup ? ` · ${exercise.startGroup}` : ""}</dd></div>
+            <div><dt>Mål</dt><dd>{talkgroupFolders[exercise.targetFolder].label} · {exercise.targetGroup}</dd></div>
+          </dl>
+          <small>Källa: {exercise.sourceNote}</small>
+        </section>
+
+        <section className={`tree-terminal ${isDone ? "success" : ""}`} aria-label="Simulerad terminalnavigering">
+          <div className="tree-screen" aria-live="polite">
+            <div className="screen-icons"><span>{mode}</span><span>{mode === "TMO" ? "⌁ NÄT" : "◇ DIREKT"}</span><span>{moves} steg</span></div>
+            <small>MAPP</small>
+            <strong>{folder.label}</strong>
+            <span className="screen-group">{selectedGroup ?? (folder.children?.length ? "↳ undermappar" : "—")}</span>
+            <div className="breadcrumb">{folderPath(folderId).map((item) => item.label).join(" › ")}</div>
+          </div>
+          <div className="navigation-controls">
+            <div className="arrow-pad" aria-label="Pilknappar för mappar">
+              <button onClick={() => moveFolder("up")} aria-label="Mapp upp">↑</button>
+              <button onClick={() => moveFolder("left")} aria-label="Mapp vänster">←</button>
+              <span>MAP</span>
+              <button onClick={() => moveFolder("right")} aria-label="Mapp höger">→</button>
+              <button onClick={() => moveFolder("down")} aria-label="Mapp ned">↓</button>
+            </div>
+            <div className="knob-control" aria-label="Vred för talgrupper">
+              <button onClick={() => turnKnob(-1)} aria-label="Föregående talgrupp">−</button>
+              <div><b>VRED</b><span>TALGRUPP</span></div>
+              <button onClick={() => turnKnob(1)} aria-label="Nästa talgrupp">+</button>
+            </div>
+          </div>
+        </section>
+
+        <aside className={`navigation-feedback ${isDone ? "success" : ""}`} aria-live="polite">
+          <small>{isDone ? "Övningen klar" : "Navigeringsstöd"}</small>
+          <p>{message}</p>
+          {isDone ? <p className="why-correct">{exercise.reason}</p> : <button onClick={showHint}>Visa nästa ledtråd</button>}
+          <div className="exercise-actions">
+            <button onClick={() => loadExercise(exerciseIndex)}>Börja om</button>
+            {isDone && exerciseIndex < navigationExercises.length - 1 && <button className="next-exercise" onClick={() => loadExercise(exerciseIndex + 1)}>Nästa övning →</button>}
+          </div>
+        </aside>
+      </div>
+      <p className="lab-disclaimer">Övningsmodell för studentterminaler MPU. Aktuell sambandstablå, lokala beslut och terminalens faktiska programmering gäller alltid.</p>
+    </article>
   );
 }
 
