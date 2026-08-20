@@ -21,6 +21,7 @@ test("server-renders the finished learning platform", async () => {
   const html = await response.text();
   assert.match(html, /Sambandslabbet/i);
   assert.match(html, /Från terminal till/);
+  assert.match(html, /data-version="3\.0\.0"/);
   assert.match(html, /<b>10<\/b> moduler/);
   assert.match(html, /Övningslabb/);
   assert.match(html, /källmaterial/);
@@ -28,11 +29,12 @@ test("server-renders the finished learning platform", async () => {
 });
 
 test("ships the complete course structure without publishing source files", async () => {
-  const [content, page, talkgroupLab, imageSupport, layout, sourceNames, publicNames, sourceImageNames, builtImageNames, builtNames, socialImage] = await Promise.all([
+  const [content, page, talkgroupLab, imageSupport, communicationTools, layout, sourceNames, publicNames, sourceImageNames, builtImageNames, builtNames, socialImage] = await Promise.all([
     readFile(new URL("../app/content.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/talkgroup-lab.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/image-support.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/communication-tools.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readdir(new URL("../källmaterial/", import.meta.url)),
     readdir(new URL("../public/", import.meta.url)),
@@ -48,6 +50,8 @@ test("ships the complete course structure without publishing source files", asyn
   assert.match(page, /PracticeLab/);
   assert.match(page, /TalkgroupLab/);
   assert.match(page, /ImageSupportLibrary/);
+  assert.match(page, /CommunicationTools/);
+  assert.match(page, /Bekräfta talgruppen/);
   assert.match(page, /SourceLibrary/);
   assert.equal((talkgroupLab.match(/sourceNote: "/g) ?? []).length, 5);
   assert.match(talkgroupLab, /Navigering talgrupper, sida 6/);
@@ -56,6 +60,11 @@ test("ships the complete course structure without publishing source files", asyn
   assert.match(imageSupport, /knappologi och display-1\.pdf/);
   assert.match(imageSupport, /Polman\.pdf/);
   assert.match(imageSupport, /Navigering talgrupper\.pdf/);
+  assert.equal((communicationTools.match(/prompt: "/g) ?? []).length, 6);
+  assert.match(communicationTools, /Adam/);
+  assert.match(communicationTools, /Alpha/);
+  assert.match(communicationTools, /Avrapportering kort\.pdf/);
+  assert.match(communicationTools, /Indexering 22\.pdf/);
   assert.match(layout, /openGraph/);
   assert.equal(sourceNames.length, 63);
   assert.equal(sourceNames.filter((name) => name.toLowerCase().endsWith(".pdf")).length, 61);
