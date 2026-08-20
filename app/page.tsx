@@ -2,10 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { modules, quickCards, radioScenarios, sourceDocuments, type LearningModule } from "./content";
+import {
+  callsignParts,
+  communicationToolSources,
+  indexExercises,
+  internationalAlphabet,
+  internationalDigits,
+  nationalAlphabet,
+  nationalDigits,
+  reportChecklist,
+  spellingRules,
+} from "./communication-tools";
 import { imageSupportUnits, type ImageSupportUnit } from "./image-support";
 import { folderPath, navigationExercises, rootFolderIds, siblingIds, talkgroupFolders } from "./talkgroup-lab";
 
-type View = "start" | "bilder" | "lab" | "snabbkort" | "kallor";
+type View = "start" | "bilder" | "lab" | "verktyg" | "snabbkort" | "kallor";
 type ProgressState = { completed: string[]; scores: Record<string, number> };
 
 const STORAGE_KEY = "sambandslabbet-progress-v1";
@@ -130,7 +141,7 @@ export default function Home() {
   }
 
   return (
-    <main id="top">
+    <main id="top" data-version="3.0.0">
       <SiteHeader view={view} setView={setView} progressPercent={progressPercent} />
 
       {view === "start" && (
@@ -149,6 +160,7 @@ export default function Home() {
                 </button>
                 <button className="text-action" onClick={() => setView("lab")}>Öppna övningslabbet</button>
                 <button className="text-action" onClick={() => setView("bilder")}>Utforska bildstödet</button>
+                <button className="text-action" onClick={() => setView("verktyg")}>Öppna sambandsverktygen</button>
               </div>
               <div className="trust-row" aria-label="Plattformens innehåll">
                 <span><b>10</b> moduler</span>
@@ -228,6 +240,16 @@ export default function Home() {
             </div>
           </section>
 
+          <section className="tools-teaser">
+            <div>
+              <span className="eyebrow light">Sambandsverktyg</span>
+              <h2>Läs. Bokstavera. Avrapportera.</h2>
+              <p>Bygg upp anropssignalen, slå upp båda alfabeten, träna index och använd checklistan inför avrapportering.</p>
+              <button className="lime-action" onClick={() => setView("verktyg")}>Öppna verktygen <span>→</span></button>
+            </div>
+            <div className="tools-teaser-code" aria-hidden="true"><span>(1)</span><b>65</b><i>–</i><strong>1110</strong></div>
+          </section>
+
           <section className="source-teaser">
             <div>
               <span className="eyebrow">Spårbart innehåll</span>
@@ -243,6 +265,7 @@ export default function Home() {
 
       {view === "bilder" && <ImageSupportLibrary />}
       {view === "lab" && <PracticeLab />}
+      {view === "verktyg" && <CommunicationTools />}
       {view === "snabbkort" && <Flashcards />}
       {view === "kallor" && <SourceLibrary />}
 
@@ -269,6 +292,7 @@ function SiteHeader({ view, setView, progressPercent }: { view: View; setView: (
         <button className={view === "start" ? "active" : ""} onClick={() => navigate("start")}>Moduler</button>
         <button className={view === "bilder" ? "active" : ""} onClick={() => navigate("bilder")}>Bildstöd</button>
         <button className={view === "lab" ? "active" : ""} onClick={() => navigate("lab")}>Övningslabb</button>
+        <button className={view === "verktyg" ? "active" : ""} onClick={() => navigate("verktyg")}>Sambandsverktyg</button>
         <button className={view === "snabbkort" ? "active" : ""} onClick={() => navigate("snabbkort")}>Snabbkort</button>
         <button className={view === "kallor" ? "active" : ""} onClick={() => navigate("kallor")}>Källor</button>
       </nav>
@@ -581,6 +605,128 @@ function ImageSupportPanel({ unit }: { unit: ImageSupportUnit }) {
   );
 }
 
+function CommunicationTools() {
+  const [activeCallsignPart, setActiveCallsignPart] = useState(0);
+  const [alphabetMode, setAlphabetMode] = useState<"nationellt" | "internationellt">("nationellt");
+  const [alphabetQuery, setAlphabetQuery] = useState("");
+  const [reportChecks, setReportChecks] = useState<boolean[]>(() => reportChecklist.map(() => false));
+  const [indexExercise, setIndexExercise] = useState(0);
+  const [indexAnswers, setIndexAnswers] = useState<Record<number, number>>({});
+
+  const alphabet = alphabetMode === "nationellt" ? nationalAlphabet : internationalAlphabet;
+  const digits = alphabetMode === "nationellt" ? nationalDigits : internationalDigits;
+  const normalizedQuery = alphabetQuery.trim().toLocaleLowerCase("sv");
+  const filteredAlphabet = [...alphabet, ...digits].filter((entry) => (
+    !normalizedQuery
+    || entry.character.toLocaleLowerCase("sv").includes(normalizedQuery)
+    || entry.word.toLocaleLowerCase("sv").includes(normalizedQuery)
+  ));
+  const currentIndexExercise = indexExercises[indexExercise];
+  const currentIndexAnswer = indexAnswers[indexExercise];
+  const reportDone = reportChecks.filter(Boolean).length;
+  const indexCorrect = indexExercises.reduce((sum, exercise, index) => sum + (indexAnswers[index] === exercise.answer ? 1 : 0), 0);
+
+  return (
+    <section className="subpage tools-page">
+      <div className="subpage-hero tools-hero">
+        <span className="eyebrow">Sambandsverktyg</span>
+        <h1>Från uppslag till säkert svar.</h1>
+        <p>Fyra källkontrollerade stationer för anropssignal, bokstavering, avrapportering och index. Allt fungerar direkt i webbläsaren och inga uppgifter sparas.</p>
+        <div className="image-safety-note"><b>Övningsstöd</b><span>Aktuell sambandstablå, lokala beslut och terminalens programmering gäller alltid före repetitionsstödet.</span></div>
+      </div>
+
+      <div className="tools-layout">
+        <article className="tool-station callsign-station" id="anropssignal">
+          <div className="lab-heading"><span>01</span><div><h2>Bygg anropssignalen</h2><p>Klicka på en del för att se vad positionen betyder.</p></div></div>
+          <div className="callsign-workbench">
+            <div className="callsign-code" aria-label="Exempel på anropssignal 1 65 1110">
+              {callsignParts.map((part, index) => (
+                <button key={`${part.label}-${index}`} className={activeCallsignPart === index ? "active" : ""} onClick={() => setActiveCallsignPart(index)}>
+                  {index === 0 ? `(${part.value})` : index === 3 ? `–${part.value}` : part.value}
+                </button>
+              ))}
+            </div>
+            <aside className="callsign-explanation" aria-live="polite">
+              <small>Position {activeCallsignPart + 1}</small>
+              <h3>{callsignParts[activeCallsignPart].label}</h3>
+              <p>{callsignParts[activeCallsignPart].explanation}</p>
+            </aside>
+          </div>
+          <p className="tool-source">Källa: Anropssignaler, nummerplan.pdf</p>
+        </article>
+
+        <article className="tool-station alphabet-station" id="bokstavering">
+          <div className="lab-heading"><span>02</span><div><h2>Bokstavera utan att blanda</h2><p>Välj alfabet och sök på bokstav, siffra eller kodord.</p></div></div>
+          <div className="spelling-rules">
+            {spellingRules.map((rule, index) => <div key={rule}><span>{String(index + 1).padStart(2, "0")}</span><p>{rule}</p></div>)}
+          </div>
+          <div className="alphabet-toolbar">
+            <div role="tablist" aria-label="Välj bokstaveringsalfabet">
+              <button role="tab" aria-selected={alphabetMode === "nationellt"} className={alphabetMode === "nationellt" ? "active" : ""} onClick={() => setAlphabetMode("nationellt")}>Nationellt</button>
+              <button role="tab" aria-selected={alphabetMode === "internationellt"} className={alphabetMode === "internationellt" ? "active" : ""} onClick={() => setAlphabetMode("internationellt")}>Internationellt</button>
+            </div>
+            <label>Sök i alfabetet<input value={alphabetQuery} onChange={(event) => setAlphabetQuery(event.target.value)} placeholder="Exempel: K, Kalle, 7" /></label>
+          </div>
+          <div className="alphabet-grid" aria-live="polite">
+            {filteredAlphabet.map((entry) => <div key={`${alphabetMode}-${entry.character}`}><b>{entry.character}</b><span>{entry.word}</span></div>)}
+          </div>
+          {alphabetMode === "internationellt" && <p className="alphabet-note">Den internationella tabellen visar de engelska sifferorden som referens. I svensk radiotrafik sägs siffror på svenska.</p>}
+          <p className="tool-source">Källa: Bokstavering.pdf</p>
+        </article>
+
+        <article className="tool-station report-station" id="avrapportering">
+          <div className="lab-heading"><span>03</span><div><h2>Avrapportera till RLC</h2><p>Bocka av vad som behöver framgå. Skriv aldrig person- eller ärendeuppgifter i verktyget.</p></div></div>
+          <div className="report-progress"><span style={{ width: `${(reportDone / reportChecklist.length) * 100}%` }} /><b>{reportDone} / {reportChecklist.length}</b></div>
+          <div className="report-checklist">
+            {reportChecklist.map((item, index) => (
+              <button
+                key={item}
+                className={reportChecks[index] ? "checked" : ""}
+                aria-pressed={reportChecks[index]}
+                onClick={() => setReportChecks((current) => current.map((checked, itemIndex) => itemIndex === index ? !checked : checked))}
+              >
+                <span>{reportChecks[index] ? "✓" : String(index + 1).padStart(2, "0")}</span><p>{item}</p>
+              </button>
+            ))}
+          </div>
+          {reportDone === reportChecklist.length && <div className="report-complete" role="status"><b>Checklistan genomgången.</b><span>Kontrollera att händelserapporten också innehåller uppgifter från andra kanaler som behövs för fortsatt utredning.</span></div>}
+          <button className="outline-action report-reset" disabled={reportDone === 0} onClick={() => setReportChecks(reportChecklist.map(() => false))}>Nollställ checklistan</button>
+          <p className="tool-source">Källa: Avrapportering kort.pdf</p>
+        </article>
+
+        <article className="tool-station index-station" id="indextraning">
+          <div className="lab-heading"><span>04</span><div><h2>Indexträning</h2><p>Sex exempel från det kontrollerade utbildningsmaterialet.</p></div></div>
+          <div className="index-progress" aria-label={`${Object.keys(indexAnswers).length} av ${indexExercises.length} besvarade`}>
+            {indexExercises.map((exercise, index) => <button key={exercise.prompt} className={`${index === indexExercise ? "active" : ""} ${indexAnswers[index] === exercise.answer ? "correct" : indexAnswers[index] !== undefined ? "wrong" : ""}`} onClick={() => setIndexExercise(index)}>{indexAnswers[index] === exercise.answer ? "✓" : index + 1}</button>)}
+          </div>
+          <div className="index-card">
+            <span className="scenario-count">Fråga {indexExercise + 1} / {indexExercises.length}</span>
+            <h3>{currentIndexExercise.prompt}</h3>
+            <div className="index-options">
+              {currentIndexExercise.options.map((option, optionIndex) => (
+                <button
+                  key={option}
+                  className={currentIndexAnswer === optionIndex ? (optionIndex === currentIndexExercise.answer ? "correct" : "wrong") : currentIndexAnswer !== undefined && optionIndex === currentIndexExercise.answer ? "correct" : ""}
+                  onClick={() => setIndexAnswers((current) => ({ ...current, [indexExercise]: optionIndex }))}
+                >{option}</button>
+              ))}
+            </div>
+            {currentIndexAnswer !== undefined && <div className="index-feedback"><b>{currentIndexAnswer === currentIndexExercise.answer ? "Rätt." : "Inte riktigt."}</b> {currentIndexExercise.explanation}</div>}
+            <div className="index-actions">
+              <button disabled={indexExercise === 0} onClick={() => setIndexExercise(indexExercise - 1)}>← Föregående</button>
+              <span>{indexCorrect} rätt</span>
+              <button disabled={indexExercise === indexExercises.length - 1} onClick={() => setIndexExercise(indexExercise + 1)}>Nästa →</button>
+            </div>
+          </div>
+          <p className="tool-source">Källa: Indexering 22.pdf</p>
+        </article>
+
+        <aside className="tools-sources"><b>Källspårning</b>{communicationToolSources.map((source) => <span key={source}>{source}</span>)}</aside>
+      </div>
+    </section>
+  );
+}
+
 function PracticeLab() {
   const [mode, setMode] = useState<"TMO" | "DMO">("TMO");
   const [screen, setScreen] = useState("SKAN IGV · normalpassning");
@@ -682,10 +828,12 @@ function TalkgroupLab() {
   const [moves, setMoves] = useState(0);
   const [message, setMessage] = useState("Börja med att läsa startläge och mål.");
   const [completed, setCompleted] = useState<string[]>([]);
+  const [confirmationMethod, setConfirmationMethod] = useState<string | null>(null);
   const folder = talkgroupFolders[folderId];
   const groups = folder.groups ?? [];
   const selectedGroup = groups[groupIndex];
-  const isDone = folderId === exercise.targetFolder && selectedGroup === exercise.targetGroup;
+  const targetReady = folderId === exercise.targetFolder && selectedGroup === exercise.targetGroup;
+  const isDone = targetReady && confirmationMethod !== null;
   const mode = folderId === "dmo" && selectedGroup ? "DMO" : "TMO";
 
   const loadExercise = (index: number) => {
@@ -694,6 +842,7 @@ function TalkgroupLab() {
     setFolderId(next.startFolder);
     setGroupIndex(initialGroupIndex(next.startFolder, next.startGroup));
     setMoves(0);
+    setConfirmationMethod(null);
     setMessage("Nytt startläge laddat. Hitta målet utan direktval.");
   };
 
@@ -701,15 +850,22 @@ function TalkgroupLab() {
     const nextFolder = talkgroupFolders[nextFolderId];
     const nextGroup = nextFolder.groups?.[nextGroupIndex];
     if (nextFolderId === exercise.targetFolder && nextGroup === exercise.targetGroup) {
-      setCompleted((current) => current.includes(exercise.id) ? current : [...current, exercise.id]);
-      setMessage(`Rätt. Målet nåddes på ${nextMoves} handgrepp.`);
+      setMessage(`Rätt talgrupp visas efter ${nextMoves} handgrepp. Bekräfta valet för att göra bytet klart.`);
       return true;
     }
     return false;
   };
 
+  const confirmSelection = (method: string) => {
+    if (!targetReady || isDone) return;
+    setConfirmationMethod(method);
+    setCompleted((current) => current.includes(exercise.id) ? current : [...current, exercise.id]);
+    setMessage(`Valet bekräftades med ${method}. Övningen är klar.`);
+  };
+
   const moveFolder = (direction: "left" | "right" | "up" | "down") => {
     if (isDone) return;
+    setConfirmationMethod(null);
     let nextFolderId = folderId;
     if (direction === "up") {
       if (!folder.parent) {
@@ -746,6 +902,7 @@ function TalkgroupLab() {
 
   const turnKnob = (direction: -1 | 1) => {
     if (isDone) return;
+    setConfirmationMethod(null);
     if (!groups.length) {
       setMessage(folder.children?.length ? "Mappen innehåller undermappar. Använd pil ned." : "Här finns ingen valbar talgrupp i övningsmodellen.");
       return;
@@ -765,7 +922,7 @@ function TalkgroupLab() {
     const targetPath = folderPath(exercise.targetFolder).map((item) => item.id);
     const currentPath = folderPath(folderId).map((item) => item.id);
     if (folderId === exercise.targetFolder) {
-      setMessage(selectedGroup === exercise.targetGroup ? "Målet är klart." : `Du är i rätt mapp. Vrid till ${exercise.targetGroup}.`);
+      setMessage(selectedGroup === exercise.targetGroup ? "Rätt talgrupp visas. Bekräfta med grön lur, PTT eller genom att vänta några sekunder." : `Du är i rätt mapp. Vrid till ${exercise.targetGroup}.`);
       return;
     }
     if (targetPath.includes(folderId)) {
@@ -838,9 +995,16 @@ function TalkgroupLab() {
         </section>
 
         <aside className={`navigation-feedback ${isDone ? "success" : ""}`} aria-live="polite">
-          <small>{isDone ? "Övningen klar" : "Navigeringsstöd"}</small>
+          <small>{isDone ? "Övningen klar" : targetReady ? "Bekräfta talgruppen" : "Navigeringsstöd"}</small>
           <p>{message}</p>
-          {isDone ? <p className="why-correct">{exercise.reason}</p> : <button onClick={showHint}>Visa nästa ledtråd</button>}
+          {targetReady && !isDone && (
+            <div className="group-confirmation" aria-label="Bekräfta talgruppsval">
+              <button onClick={() => confirmSelection("grön lur")}>Grön lur</button>
+              <button onClick={() => confirmSelection("PTT")}>PTT</button>
+              <button onClick={() => confirmSelection("några sekunders väntan")}>Vänta</button>
+            </div>
+          )}
+          {isDone ? <p className="why-correct">{exercise.reason} Valet bekräftades med {confirmationMethod}.</p> : !targetReady && <button onClick={showHint}>Visa nästa ledtråd</button>}
           <div className="exercise-actions">
             <button onClick={() => loadExercise(exerciseIndex)}>Börja om</button>
             {isDone && exerciseIndex < navigationExercises.length - 1 && <button className="next-exercise" onClick={() => loadExercise(exerciseIndex + 1)}>Nästa övning →</button>}
