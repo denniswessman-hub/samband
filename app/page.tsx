@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { modules, quickCards, radioScenarios, sourceDocuments, type LearningModule } from "./content";
+import { imageSupportUnits, type ImageSupportUnit } from "./image-support";
 import { folderPath, navigationExercises, rootFolderIds, siblingIds, talkgroupFolders } from "./talkgroup-lab";
 
-type View = "start" | "lab" | "snabbkort" | "kallor";
+type View = "start" | "bilder" | "lab" | "snabbkort" | "kallor";
 type ProgressState = { completed: string[]; scores: Record<string, number> };
 
 const STORAGE_KEY = "sambandslabbet-progress-v1";
@@ -118,6 +119,11 @@ export default function Home() {
           setView("lab");
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        onOpenImages={() => {
+          setActiveModule(null);
+          setView("bilder");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
         completed={progress.completed.includes(activeModule.id)}
       />
     );
@@ -142,6 +148,7 @@ export default function Home() {
                   Börja med modul 1 <span aria-hidden="true">→</span>
                 </button>
                 <button className="text-action" onClick={() => setView("lab")}>Öppna övningslabbet</button>
+                <button className="text-action" onClick={() => setView("bilder")}>Utforska bildstödet</button>
               </div>
               <div className="trust-row" aria-label="Plattformens innehåll">
                 <span><b>10</b> moduler</span>
@@ -205,6 +212,22 @@ export default function Home() {
             <MiniTerminal />
           </section>
 
+          <section className="visual-teaser">
+            <div className="visual-teaser-copy">
+              <span className="eyebrow">Nytt bildstöd</span>
+              <h2>Se reglaget. Förstå funktionen.</h2>
+              <p>Arbeta med originalbilder av SC21 och Polman. Visa etiketter, zooma, klicka på markeringarna och lös praktiska bildfrågor.</p>
+              <button className="primary-action" onClick={() => setView("bilder")}>Öppna bildstödet <span>→</span></button>
+            </div>
+            <div className="visual-teaser-stack" aria-hidden="true">
+              {/* Static GitHub Pages build: native images avoid an unavailable optimization server. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="source-images/sc21-overview.jpg" alt="" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="source-images/polman-rakel.jpg" alt="" />
+            </div>
+          </section>
+
           <section className="source-teaser">
             <div>
               <span className="eyebrow">Spårbart innehåll</span>
@@ -218,6 +241,7 @@ export default function Home() {
         </>
       )}
 
+      {view === "bilder" && <ImageSupportLibrary />}
       {view === "lab" && <PracticeLab />}
       {view === "snabbkort" && <Flashcards />}
       {view === "kallor" && <SourceLibrary />}
@@ -243,6 +267,7 @@ function SiteHeader({ view, setView, progressPercent }: { view: View; setView: (
       </button>
       <nav aria-label="Huvudmeny">
         <button className={view === "start" ? "active" : ""} onClick={() => navigate("start")}>Moduler</button>
+        <button className={view === "bilder" ? "active" : ""} onClick={() => navigate("bilder")}>Bildstöd</button>
         <button className={view === "lab" ? "active" : ""} onClick={() => navigate("lab")}>Övningslabb</button>
         <button className={view === "snabbkort" ? "active" : ""} onClick={() => navigate("snabbkort")}>Snabbkort</button>
         <button className={view === "kallor" ? "active" : ""} onClick={() => navigate("kallor")}>Källor</button>
@@ -255,7 +280,7 @@ function SiteHeader({ view, setView, progressPercent }: { view: View; setView: (
 }
 
 function ModuleWorkspace({
-  module, lessonIndex, setLessonIndex, answers, setAnswers, quizScore, submitQuiz, restartModule, onClose, onOpenLab, completed,
+  module, lessonIndex, setLessonIndex, answers, setAnswers, quizScore, submitQuiz, restartModule, onClose, onOpenLab, onOpenImages, completed,
 }: {
   module: LearningModule;
   lessonIndex: number;
@@ -267,6 +292,7 @@ function ModuleWorkspace({
   restartModule: () => void;
   onClose: () => void;
   onOpenLab: () => void;
+  onOpenImages: () => void;
   completed: boolean;
 }) {
   const isQuiz = lessonIndex === module.lessons.length;
@@ -320,6 +346,12 @@ function ModuleWorkspace({
                 <div className="lab-callout">
                   <div><small>Praktisk träning</small><strong>Prova fem källkontrollerade rutter i Talgruppslabbet.</strong></div>
                   <button className="lime-action" onClick={onOpenLab}>Öppna Talgruppslabbet <span>→</span></button>
+                </div>
+              )}
+              {module.id === "terminalen" && lessonIndex <= 1 && (
+                <div className="lab-callout image-callout">
+                  <div><small>Bildträning</small><strong>Hitta display, PTT, vred och symboler på riktiga källbilder.</strong></div>
+                  <button className="lime-action" onClick={onOpenImages}>Öppna bildstödet <span>→</span></button>
                 </div>
               )}
               <div className="lesson-actions">
@@ -387,6 +419,165 @@ function MiniTerminal() {
       <div className="mini-pad">{[1,2,3,4,5,6,7,8,9,"*",0,"#"].map((key) => <i key={key}>{key}</i>)}</div>
       <b>PTT</b>
     </div>
+  );
+}
+
+function ImageSupportLibrary() {
+  const [activeUnitId, setActiveUnitId] = useState(imageSupportUnits[0].id);
+  const activeUnit = imageSupportUnits.find((unit) => unit.id === activeUnitId) ?? imageSupportUnits[0];
+
+  return (
+    <section className="subpage image-support-page">
+      <div className="subpage-hero image-support-hero">
+        <span className="eyebrow">Bildstöd från originalfilerna</span>
+        <h1>Se. Klicka. <em>Förstå.</em></h1>
+        <p>Fyra visuella träningsstationer för SC21, displayen, Polman och stegvis navigering. Inga original-PDF:er publiceras.</p>
+        <div className="image-safety-note"><b>Källskydd</b><span>Utsnitt med telefon- eller terminalnummer används inte. Talgruppsnamn och index som behövs för övningarna är utbildningsexempel från källmaterialet.</span></div>
+      </div>
+
+      <div className="image-library-shell">
+        <div className="image-unit-tabs" role="tablist" aria-label="Bildserier">
+          {imageSupportUnits.map((unit) => (
+            <button
+              key={unit.id}
+              role="tab"
+              aria-selected={unit.id === activeUnit.id}
+              className={unit.id === activeUnit.id ? "active" : ""}
+              onClick={() => setActiveUnitId(unit.id)}
+            >
+              <span>{unit.number}</span>{unit.tab}
+            </button>
+          ))}
+        </div>
+        <ImageSupportPanel key={activeUnit.id} unit={activeUnit} />
+      </div>
+    </section>
+  );
+}
+
+function ImageSupportPanel({ unit }: { unit: ImageSupportUnit }) {
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [showLabels, setShowLabels] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [selectedHotspot, setSelectedHotspot] = useState<string | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [challengeActive, setChallengeActive] = useState(false);
+  const [feedback, setFeedback] = useState<{ correct: boolean; text: string } | null>(null);
+  const frame = unit.frames[frameIndex];
+  const question = unit.questions[questionIndex];
+  const selected = frame.hotspots.find((hotspot) => hotspot.id === selectedHotspot);
+
+  const chooseFrame = (index: number) => {
+    setFrameIndex(index);
+    setSelectedHotspot(null);
+    setChallengeActive(false);
+    setFeedback(null);
+  };
+
+  const startQuestion = () => {
+    const targetFrameIndex = unit.frames.findIndex((item) => item.id === question.frameId);
+    setFrameIndex(Math.max(0, targetFrameIndex));
+    setSelectedHotspot(null);
+    setFeedback(null);
+    setShowLabels(false);
+    setChallengeActive(true);
+  };
+
+  const chooseHotspot = (hotspotId: string) => {
+    setSelectedHotspot(hotspotId);
+    if (!challengeActive) return;
+    const correct = hotspotId === question.answerHotspot;
+    setFeedback({ correct, text: correct ? question.correct : question.retry });
+    if (correct) setChallengeActive(false);
+  };
+
+  const nextQuestion = () => {
+    setQuestionIndex((current) => (current + 1) % unit.questions.length);
+    setFeedback(null);
+    setSelectedHotspot(null);
+    setChallengeActive(false);
+  };
+
+  return (
+    <article className="image-support-panel">
+      <header className="image-panel-heading">
+        <div>
+          <span className="lesson-label">Bildserie {unit.number}</span>
+          <h2>{unit.title}</h2>
+          <p>{unit.intro}</p>
+        </div>
+        <div className="image-source-stamp"><small>Källa</small><b>{unit.source}</b></div>
+      </header>
+
+      {unit.frames.length > 1 && (
+        <div className="image-frame-tabs" role="tablist" aria-label="Navigeringssteg">
+          {unit.frames.map((item, index) => (
+            <button key={item.id} role="tab" aria-selected={index === frameIndex} className={index === frameIndex ? "active" : ""} onClick={() => chooseFrame(index)}>
+              <span>{index + 1}</span>Steg {index + 1}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="image-workbench">
+        <section className="image-stage-column">
+          <div className="image-tools" aria-label="Bildverktyg">
+            <button className={showLabels ? "active" : ""} onClick={() => setShowLabels((value) => !value)}>{showLabels ? "Dölj etiketter" : "Visa etiketter"}</button>
+            <label>Zoom <input type="range" min="1" max="2" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /></label>
+            <output>{Math.round(zoom * 100)}%</output>
+            <button aria-label="Zooma ut" onClick={() => setZoom((value) => Math.max(1, Number((value - 0.1).toFixed(1))))} disabled={zoom === 1}>−</button>
+            <button aria-label="Zooma in" onClick={() => setZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))} disabled={zoom === 2}>+</button>
+            <button onClick={() => setZoom(1)} disabled={zoom === 1}>Återställ</button>
+          </div>
+          <div className="image-viewport">
+            <div className="image-canvas" style={{ width: `${zoom * 100}%` }}>
+              {/* Static GitHub Pages build: native image paths work with the repository base path. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={frame.image} alt={frame.alt} />
+              {frame.hotspots.map((hotspot) => {
+                const isSelected = hotspot.id === selectedHotspot;
+                const answerState = isSelected && feedback ? (feedback.correct ? "correct" : "wrong") : "";
+                return (
+                  <button
+                    key={hotspot.id}
+                    className={`image-hotspot ${hotspot.x > 82 ? "edge-right" : ""} ${isSelected ? "selected" : ""} ${answerState}`}
+                    style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
+                    onClick={() => chooseHotspot(hotspot.id)}
+                    aria-label={`${hotspot.label}. ${hotspot.explanation}`}
+                  >
+                    <i aria-hidden="true" />
+                    {(showLabels || isSelected) && <span>{hotspot.label}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className="image-caption">{frame.caption}</p>
+        </section>
+
+        <aside className="image-guide">
+          <div className="image-explanation" aria-live="polite">
+            <small>Markerad del</small>
+            {selected ? <><h3>{selected.label}</h3><p>{selected.explanation}</p></> : <><h3>Utforska bilden</h3><p>Klicka på en markering för en kort funktionsförklaring.</p></>}
+          </div>
+
+          <div className={`image-challenge ${feedback ? (feedback.correct ? "correct" : "wrong") : ""}`}>
+            <span className="scenario-count">Bildfråga {questionIndex + 1} / {unit.questions.length}</span>
+            <h3>{question.prompt}</h3>
+            {!challengeActive && !feedback && <button className="lime-action" onClick={startQuestion}>Starta frågan <span>→</span></button>}
+            {challengeActive && !feedback && <p className="challenge-prompt">Etiketterna är dolda. Klicka på rätt markering i bilden.</p>}
+            {feedback && <div className="challenge-feedback" aria-live="polite"><b>{feedback.correct ? "Rätt markerat." : "Försök igen."}</b><p>{feedback.text}</p></div>}
+            {feedback && !feedback.correct && <button className="outline-action" onClick={() => { setFeedback(null); setSelectedHotspot(null); }}>Försök igen</button>}
+            {feedback?.correct && <button className="outline-action" onClick={nextQuestion}>{unit.questions.length > 1 ? "Nästa bildfråga" : "Gör om frågan"}</button>}
+          </div>
+
+          <div className="image-source-note">
+            <b>Så är bilden använd</b>
+            <p>Originalbilden är frilagd ur källfilen. Etiketter, klickytor och frågelogik ligger separat i appen.</p>
+          </div>
+        </aside>
+      </div>
+    </article>
   );
 }
 
